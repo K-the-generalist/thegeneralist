@@ -150,6 +150,36 @@
             transition: all 0.3s ease;
         }
 
+        .editable-task {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            min-height: 20px;
+            background: transparent;
+        }
+
+        .editable-task:hover {
+            background: #f3f3f3;
+        }
+
+        .task-editor {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #169872;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            background: white;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .task-editor:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(22, 152, 114, 0.1);
+        }
+
         .spreadsheet tr:hover {
             background: #f3f3f3;
         }
@@ -529,17 +559,48 @@
             }
         }
 
-        function updateTaskStatus(taskId, newStatus) {
+        function updateTaskName(taskId, newName) {
             const task = tasks.find(t => t.id === taskId);
-            if (task) {
-                task.status = newStatus;
+            if (task && newName.trim()) {
+                task.name = newName.trim();
                 renderSpreadsheet();
-                updateStats();
                 
                 if (currentView === 'gantt') {
                     renderGanttChart();
                 }
             }
+        }
+
+        function makeTaskEditable(element, taskId) {
+            const currentText = element.textContent;
+            const textarea = document.createElement('textarea');
+            textarea.className = 'task-editor';
+            textarea.value = currentText;
+            
+            // Replace the div with textarea
+            element.innerHTML = '';
+            element.appendChild(textarea);
+            
+            // Focus and select all text
+            textarea.focus();
+            textarea.select();
+            
+            // Save on blur or Enter+Shift
+            function saveEdit() {
+                const newText = textarea.value;
+                updateTaskName(taskId, newText);
+            }
+            
+            textarea.addEventListener('blur', saveEdit);
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    // Cancel edit
+                    renderSpreadsheet();
+                }
+            });
         }
 
         function renderSpreadsheet() {
@@ -562,7 +623,11 @@
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td></td>
-                            <td>${task.name}</td>
+                            <td>
+                                <div class="editable-task" onclick="makeTaskEditable(this, ${task.id})" title="Click to edit">
+                                    ${task.name}
+                                </div>
+                            </td>
                             <td><span class="assignee-badge">${task.assignee}</span></td>
                             <td>
                                 <select onchange="updateTaskStatus(${task.id}, this.value)" class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}">
