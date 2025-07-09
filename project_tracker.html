@@ -671,10 +671,11 @@
             element.appendChild(input);
             input.focus();
             
-            let taskSaved = false;
+            let isProcessing = false;
             
             function saveTask() {
-                if (taskSaved) return; // Prevent duplicate saves
+                if (isProcessing) return;
+                isProcessing = true;
                 
                 const taskName = input.value.trim();
                 if (taskName) {
@@ -685,25 +686,37 @@
                         assignee: 'Ali', // Default assignee
                         status: 'Pending'
                     });
-                    taskSaved = true;
+                    updateStats();
+                    
+                    if (currentView === 'gantt') {
+                        renderGanttChart();
+                    }
                 }
                 renderSpreadsheet();
-                updateStats();
-                
-                if (currentView === 'gantt') {
-                    renderGanttChart();
+            }
+            
+            // Remove event listeners when done
+            function cleanup() {
+                input.removeEventListener('blur', saveTask);
+                input.removeEventListener('keydown', handleKeydown);
+            }
+            
+            function handleKeydown(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    cleanup();
+                    saveTask();
+                } else if (e.key === 'Escape') {
+                    cleanup();
+                    renderSpreadsheet();
                 }
             }
             
-            input.addEventListener('blur', saveTask);
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    saveTask();
-                } else if (e.key === 'Escape') {
-                    renderSpreadsheet();
-                }
+            input.addEventListener('blur', function() {
+                cleanup();
+                saveTask();
             });
+            input.addEventListener('keydown', handleKeydown);
         }
 
         function renderSpreadsheet() {
