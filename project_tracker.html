@@ -1,4 +1,26 @@
-<!DOCTYPE html>
+<div class="task-input" id="taskInput" style="display: none;">
+            <input type="text" id="taskName" placeholder="Task name" />
+            <select id="taskWeek">
+                <option value="Week of July 7th">Week of July 7th</option>
+                <option value="Week of July 14th">Week of July 14th</option>
+                <option value="Week of July 21st">Week of July 21st</option>
+                <option value="Week of July 28th">Week of July 28th</option>
+                <option value="Week of August 4th">Week of August 4th</option>
+            </select>
+            <select id="taskAssignee">
+                <option value="Mario">Mario</option>
+                <option value="Ali">Ali</option>
+                <option value="Brex">Brex</option>
+                <option value="Edmon">Edmon</option>
+                <option value="Kianne">Kianne</option>
+            </select>
+            <select id="taskStatus">
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+            </select>
+            <button class="add-task-btn" onclick="addTask()">Add Task</button>
+        </div><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -215,13 +237,65 @@
             color: #22543d;
         }
 
-        .assignee-badge {
+        .assignee-select {
             background: #169872;
             color: white;
+            border: none;
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 12px;
             font-weight: 600;
+            cursor: pointer;
+        }
+
+        .add-task-row {
+            background: #f3f3f3;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+
+        .add-task-row:hover {
+            opacity: 1;
+            background: #ffe6cc;
+        }
+
+        .add-task-placeholder {
+            color: #718096;
+            font-style: italic;
+            cursor: pointer;
+            padding: 8px;
+            text-align: center;
+            font-size: 14px;
+            min-height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .week-section {
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .week-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .add-task-input {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #169872;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .add-task-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(22, 152, 114, 0.1);
         }
 
         .gantt-view {
@@ -320,7 +394,7 @@
             background: #e2e8f0;
             border-radius: 4px;
             overflow: hidden;
-            margin-top: 20px;
+            margin: 30px 0;
         }
 
         .progress-fill {
@@ -408,7 +482,6 @@
                 <button class="active" onclick="switchView('spreadsheet')">Spreadsheet View</button>
                 <button onclick="switchView('gantt')">Gantt Chart</button>
             </div>
-            <button class="add-task-btn" onclick="toggleTaskInput()">Add New Task</button>
         </div>
 
         <div class="task-input" id="taskInput" style="display: none;">
@@ -571,33 +644,53 @@
             }
         }
 
-        function makeTaskEditable(element, taskId) {
-            const currentText = element.textContent;
-            const textarea = document.createElement('textarea');
-            textarea.className = 'task-editor';
-            textarea.value = currentText;
+        function updateTaskAssignee(taskId, newAssignee) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.assignee = newAssignee;
+                renderSpreadsheet();
+                updateStats();
+                
+                if (currentView === 'gantt') {
+                    renderGanttChart();
+                }
+            }
+        }
+
+        function addTaskInline(week, element) {
+            const input = document.createElement('input');
+            input.className = 'add-task-input';
+            input.placeholder = 'Enter task name...';
             
-            // Replace the div with textarea
             element.innerHTML = '';
-            element.appendChild(textarea);
+            element.appendChild(input);
+            input.focus();
             
-            // Focus and select all text
-            textarea.focus();
-            textarea.select();
-            
-            // Save on blur or Enter+Shift
-            function saveEdit() {
-                const newText = textarea.value;
-                updateTaskName(taskId, newText);
+            function saveTask() {
+                const taskName = input.value.trim();
+                if (taskName) {
+                    tasks.push({
+                        id: nextTaskId++,
+                        name: taskName,
+                        week: week,
+                        assignee: 'Ali', // Default assignee
+                        status: 'Pending'
+                    });
+                }
+                renderSpreadsheet();
+                updateStats();
+                
+                if (currentView === 'gantt') {
+                    renderGanttChart();
+                }
             }
             
-            textarea.addEventListener('blur', saveEdit);
-            textarea.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
+            input.addEventListener('blur', saveTask);
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
                     e.preventDefault();
-                    saveEdit();
+                    saveTask();
                 } else if (e.key === 'Escape') {
-                    // Cancel edit
                     renderSpreadsheet();
                 }
             });
@@ -609,37 +702,63 @@
 
             const weekOrder = ["Week of July 7th", "Week of July 14th", "Week of July 21st", "Week of July 28th", "Week of August 4th"];
             
-            weekOrder.forEach(week => {
+            weekOrder.forEach((week, weekIndex) => {
                 const weekTasks = tasks.filter(task => task.week === week);
                 
-                if (weekTasks.length > 0) {
-                    // Add week header
-                    const weekRow = document.createElement('tr');
-                    weekRow.innerHTML = `<td colspan="5" class="week-header">${week}</td>`;
-                    tbody.appendChild(weekRow);
-                    
-                    // Add tasks for this week
-                    weekTasks.forEach(task => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td></td>
-                            <td>
-                                <div class="editable-task" onclick="makeTaskEditable(this, ${task.id})" title="Click to edit">
-                                    ${task.name}
-                                </div>
-                            </td>
-                            <td><span class="assignee-badge">${task.assignee}</span></td>
-                            <td>
-                                <select onchange="updateTaskStatus(${task.id}, this.value)" class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}">
-                                    <option value="Pending" ${task.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                                    <option value="In Progress" ${task.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                                    <option value="Completed" ${task.status === 'Completed' ? 'selected' : ''}>Completed</option>
-                                </select>
-                            </td>
-                            <td><button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button></td>
-                        `;
-                        tbody.appendChild(row);
-                    });
+                // Add week header
+                const weekRow = document.createElement('tr');
+                weekRow.innerHTML = `<td colspan="5" class="week-header">${week}</td>`;
+                tbody.appendChild(weekRow);
+                
+                // Add tasks for this week
+                weekTasks.forEach(task => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td></td>
+                        <td>
+                            <div class="editable-task" onclick="makeTaskEditable(this, ${task.id})" title="Click to edit">
+                                ${task.name}
+                            </div>
+                        </td>
+                        <td>
+                            <select class="assignee-select" onchange="updateTaskAssignee(${task.id}, this.value)">
+                                <option value="Mario" ${task.assignee === 'Mario' ? 'selected' : ''}>Mario</option>
+                                <option value="Ali" ${task.assignee === 'Ali' ? 'selected' : ''}>Ali</option>
+                                <option value="Brex" ${task.assignee === 'Brex' ? 'selected' : ''}>Brex</option>
+                                <option value="Edmon" ${task.assignee === 'Edmon' ? 'selected' : ''}>Edmon</option>
+                                <option value="Kianne" ${task.assignee === 'Kianne' ? 'selected' : ''}>Kianne</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select onchange="updateTaskStatus(${task.id}, this.value)" class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}">
+                                <option value="Pending" ${task.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                                <option value="In Progress" ${task.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                <option value="Completed" ${task.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                            </select>
+                        </td>
+                        <td><button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                // Add "Add Task" row for this week
+                const addRow = document.createElement('tr');
+                addRow.className = 'add-task-row';
+                addRow.innerHTML = `
+                    <td></td>
+                    <td colspan="4">
+                        <div class="add-task-placeholder" onclick="addTaskInline('${week}', this)">
+                            + Add task
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(addRow);
+                
+                // Add visual separation between weeks (except for last week)
+                if (weekIndex < weekOrder.length - 1) {
+                    const separatorRow = document.createElement('tr');
+                    separatorRow.innerHTML = `<td colspan="5" style="height: 25px; background: #f4faf8; border: none; padding: 0;"></td>`;
+                    tbody.appendChild(separatorRow);
                 }
             });
         }
