@@ -452,7 +452,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Future 50 Task Tracker</h1>
+        <h1>Project Task Tracker</h1>
         
         <div class="stats">
             <div class="stat-card">
@@ -658,6 +658,11 @@
         }
 
         function addTaskInline(week, element) {
+            // Prevent multiple inputs from being created
+            if (element.querySelector('input')) {
+                return;
+            }
+            
             const input = document.createElement('input');
             input.className = 'add-task-input';
             input.placeholder = 'Enter task name...';
@@ -666,7 +671,11 @@
             element.appendChild(input);
             input.focus();
             
+            let taskSaved = false;
+            
             function saveTask() {
+                if (taskSaved) return; // Prevent duplicate saves
+                
                 const taskName = input.value.trim();
                 if (taskName) {
                     tasks.push({
@@ -676,6 +685,7 @@
                         assignee: 'Ali', // Default assignee
                         status: 'Pending'
                     });
+                    taskSaved = true;
                 }
                 renderSpreadsheet();
                 updateStats();
